@@ -1,0 +1,343 @@
+openapi: 3.0.3
+info:
+  title: Claims API
+  version: 1.0.0
+  description: Claims APIs.
+
+servers:
+  - url: https://api.emil.com
+
+paths:
+  /auth/login:
+    post:
+      summary: Log in using username and password to obtain JWT tokens
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      summary: Refresh JWT access token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /claims:
+    post:
+      summary: Create a new claim
+      tags: [Claims]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimCreateRequest'
+      responses:
+        '201':
+          description: Claim created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List and filter claims
+      tags: [Claims]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ClaimStatus'
+        - name: policyNumber
+          in: query
+          schema:
+            type: string
+        - name: damageDateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: damageDateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [damageDate, -damageDate, createdAt, -createdAt]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of claims
+          headers:
+            X-Total-Count:
+              description: Total matching records
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Claim'
+
+  /claims/{id}:
+    get:
+      summary: Retrieve a claim by ID
+      tags: [Claims]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Claim found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '404':
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update claim status
+      tags: [Claims]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimStatusUpdate'
+      responses:
+        '200':
+          description: Claim status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '400':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    # -------------------------
+    # Authentication Schemas
+    # -------------------------
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+      required:
+        - accessToken
+
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required:
+        - refreshToken
+
+    # -------------------------
+    # Claims Schemas
+    # -------------------------
+    Claim:
+      type: object
+      properties:
+        id:
+          type: string
+        policyNumber:
+          type: string
+        claimantName:
+          type: string
+        damageDate:
+          type: string
+          format: date
+        lossDescription:
+          type: string
+        images:
+          type: array
+          description: List of image URLs associated with the claim
+          items:
+            type: string
+            format: uri
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - policyNumber
+        - claimantName
+        - damageDate
+        - lossDescription
+        - status
+        - createdAt
+        - updatedAt
+
+    ClaimCreateRequest:
+      type: object
+      properties:
+        policyNumber:
+          type: string
+        claimantName:
+          type: string
+        damageDate:
+          type: string
+          format: date
+        lossDescription:
+          type: string
+        images:
+          type: array
+          description: Optional list of image URLs submitted at creation
+          items:
+            type: string
+            format: uri
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+          default: OPEN
+      required:
+        - policyNumber
+        - claimantName
+        - damageDate
+        - lossDescription
+
+    ClaimStatus:
+      type: string
+      enum: [OPEN, IN_REVIEW, APPROVED, PAID]
+
+    ClaimStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+      required:
+        - status
+
+    # -------------------------
+    # Error Schema
+    # -------------------------
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+      required:
+        - code
+        - message

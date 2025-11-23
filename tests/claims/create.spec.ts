@@ -10,7 +10,7 @@ test.describe('TC1 - Create Claim (Happy Path)', () => {
     const token = await obtainAccessToken(api);
 
     const payload = {
-      policyNumber: 'P-10003',
+      policyNumber: 'P-10002',
       claimantName: 'Jane Doe',
       damageDate: '2025-11-10',
       lossDescription: 'Water damage in kitchen'
